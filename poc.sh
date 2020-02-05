@@ -293,7 +293,7 @@ check_dns() {
     ip=$(dig +short ${api}.${CLUSTER_NAME}.${DOMAINNAME})
     if [ ! -z ${ip} ]
         then
-        echo -e "$api       \e[1;32m PASS\e[0m"
+        echo -e "$ip - $api       \e[1;32m PASS\e[0m"
     else
         echo -e "$api       \e[1;31m FAIL - Record not found! \e[0m"
     fi

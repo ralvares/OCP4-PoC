@@ -29,7 +29,7 @@ BOOTSTRAP=192.168.150.30
 MASTERS=192.168.150.30,192.168.150.31,192.168.150.32
 WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 
-AIRGAP_REG='bastion.ocp.example.com'
+AIRGAP_REG='bastion.example.com'
 AIRGAP_REPO='ocp4/openshift4'
 AIRGAP_SECRET_JSON='pull-secret.json'
 AIRGAP_BIND_IP=192.168.150.10
@@ -396,6 +396,7 @@ fi
 }
 
 prep_discon(){
+    check_dns
     install_tools
     prep_http
     prep_nfs

@@ -330,7 +330,7 @@ prep_registry (){
     if [ ! -z ${fqdn} ]
     then
     test -d /opt/registry/ || mkdir -p /opt/registry/{auth,certs,data}
-    test -f /opt/registry/certs/domain.crt || openssl req -newkey rsa:4096 -nodes -sha256 -keyout /opt/registry/certs/domain.key -x509 -days 365 -subj "/CN=${AIRGAP_REG}" -out /opt/registry/certs/domain.crt
+    openssl req -newkey rsa:4096 -nodes -sha256 -keyout /opt/registry/certs/domain.key -x509 -days 365 -subj "/CN=${AIRGAP_REG}" -out /opt/registry/certs/domain.crt
     cp -rf /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
     update-ca-trust
     if [ ! -f /opt/registry/auth/htpasswd ]

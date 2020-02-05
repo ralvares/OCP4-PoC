@@ -1,7 +1,7 @@
 #!/bin/bash
 IFS=","
 ##############################################################
-# UPDATE TO MATCH ELM ENVIRONMENT
+# UPDATE TO MATCH THE ENVIRONMENT
 ##############################################################
 
 OCP_RELEASE_PATH=ocp
@@ -11,11 +11,7 @@ RHCOS_RELEASE=4.3
 RHCOS_IMAGE_BASE=4.3.0-x86_64
 
 WEBROOT=/var/www/html
-POCDIR=ocp
-
-#DO NOT CHANGE IT#
-CLUSTER_NAME=${POCDIR}
-#DO NOT CHANGE IT#
+CLUSTER_NAME=ocp
 
 NFS=true
 NFSROOT=/exports
@@ -25,9 +21,6 @@ NFS_PROVISIONER=true
 OCP_REGISTRY_STORAGE_TYPE=nfs
 
 DOMAINNAME=example.com
-
-#DO NOT CHANGE IT
-CLUSTER_NAME=${POCDIR}
 
 LB=true
 
@@ -171,10 +164,10 @@ mirror () {
 install() {
     cd ~/
     echo "Creating and populating installation folder"
-    mkdir ${POCDIR}
-    cp install-config.yaml ${POCDIR}
+    mkdir ${CLUSTER_NAME}
+    cp install-config.yaml ${CLUSTER_NAME}
     echo "Generating ignition files"
-    openshift-install create ignition-configs --dir=${POCDIR}
+    openshift-install create ignition-configs --dir=${CLUSTER_NAME}
     prep_ign
 }
 
@@ -202,14 +195,14 @@ prep_ign () {
     cd ~/
     prep_http
     echo "Installing Ignition files into web path"
-    cp -f ${POCDIR}/*.ign ${WEBROOT}
+    cp -f ${CLUSTER_NAME}/*.ign ${WEBROOT}
     tree ${WEBROOT}
     echo "Assuming VMs boot process in progress"
-    openshift-install wait-for bootstrap-complete --dir=${POCDIR} --log-level debug
-    echo "Enable cluster credentials: 'export KUBECONFIG=${POCDIR}/auth/kubeconfig'"
-    export KUBECONFIG=${POCDIR}/auth/kubeconfig
+    openshift-install wait-for bootstrap-complete --dir=${CLUSTER_NAME} --log-level debug
+    echo "Enable cluster credentials: 'export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig'"
+    export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig
     echo "Assuming VMs boot process in progress"
-    openshift-install wait-for install-complete --dir=${POCDIR} --log-level debug
+    openshift-install wait-for install-complete --dir=${CLUSTER_NAME} --log-level debug
 }
 
 create_config(){

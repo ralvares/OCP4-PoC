@@ -360,7 +360,7 @@ ExecStart=/usr/bin/podman run --name mirror-registry --net host \
   -v /opt/registry/data:/var/lib/registry:z \
   -v /opt/registry/auth:/auth:z \
   -e "REGISTRY_AUTH=htpasswd" \
-  -e "REGISTRY_HTTP_ADDR=${AIRGAP_BIND_IP}:5000" \
+  -e "REGISTRY_HTTP_ADDR=${fqdn}:5000" \
   -e "REGISTRY_AUTH_HTPASSWD_REALM=registry-realm" \
   -e "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd" \
   -v /opt/registry/certs:/certs:z \

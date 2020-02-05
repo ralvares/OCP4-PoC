@@ -32,7 +32,6 @@ WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 AIRGAP_REG='bastion.example.com'
 AIRGAP_REPO='ocp4/openshift4'
 AIRGAP_SECRET_JSON='pull-secret.json'
-AIRGAP_BIND_IP=192.168.150.10
 RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
 

@@ -49,7 +49,6 @@ get_images() {
     test -f rhcos-${RHCOS_IMAGE_BASE}-installer-kernel ||curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel
     test -f rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz
     test -f rhcos-${RHCOS_IMAGE_BASE}-installer.iso || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer.iso
-
     test -f openshift-client-linux-${OCP_SUBRELEASE}.tar.gz  || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz 
     test -f openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
 
@@ -203,10 +202,6 @@ prep_ign () {
     export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig
     echo "Assuming VMs boot process in progress"
     openshift-install wait-for install-complete --dir=${CLUSTER_NAME} --log-level debug
-}
-
-create_config(){
- echo install-config
 }
 
 prep_loadbalancer(){

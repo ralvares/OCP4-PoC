@@ -229,6 +229,7 @@ check_dns() {
             fi
         else
             echo -e "$etcd \e[1;31m FAIL - Record not found! \e[0m"
+            dns_error=true
         fi
     done
     echo "================================================="
@@ -248,6 +249,7 @@ check_dns() {
             fi
         else
             echo -e "$worker \e[1;31m FAIL - Record not found! \e[0m"
+            dns_error=true
         fi
     done
     echo "================================================="
@@ -272,13 +274,16 @@ check_dns() {
                         echo -e "$etcd_host - _etcd-server-ssl._tcp - \e[1;32m PASS\e[0m"
                     else
                         echo -e "$etcd_host \e[1;31m FAIL - PTR Records found! \e[0m"
+                        dns_error=true
                     fi
                 else
                     echo -e "$etcd_host \e[1;31m FAIL - Please check your ETCD entries! \e[0m"
+                    dns_error=true
                 fi
 
             else
                 echo -e "$etcd_host \e[1;31m FAIL - Please check your SRV entries! \e[0m"
+                dns_error=true
             fi
         fi
     done
@@ -295,6 +300,7 @@ check_dns() {
         echo -e "$ip - $api       \e[1;32m PASS\e[0m"
     else
         echo -e "$api       \e[1;31m FAIL - Record not found! \e[0m"
+        dns_error=true
     fi
     done
     echo "================================================="
@@ -315,13 +321,18 @@ check_dns() {
             fi
         else
             echo -e "$bootstrap \e[1;31m FAIL - Record not found! \e[0m"
+            dns_error=true
         fi
     done
     echo "================================================="
     echo ""
+    
+if [[ ${dns_error} = true ]]
+then
+    exit 1
+fi
 
 }
-
 
 prep_registry (){
     cd ~/

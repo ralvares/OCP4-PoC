@@ -45,13 +45,13 @@ get_images() {
     cd ~/
     test -d images || mkdir images ; cd images 
     
-    test -f images/rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img
-    test -f images/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel ||curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel
-    test -f images/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz
-    test -f images/rhcos-${RHCOS_IMAGE_BASE}-installer.iso || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer.iso
+    test -f rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img
+    test -f rhcos-${RHCOS_IMAGE_BASE}-installer-kernel ||curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel
+    test -f rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz
+    test -f rhcos-${RHCOS_IMAGE_BASE}-installer.iso || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer.iso
 
-    test -f images/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz  || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz 
-    test -f images/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
+    test -f openshift-client-linux-${OCP_SUBRELEASE}.tar.gz  || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz 
+    test -f openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
 
     cd ..
     tree images
@@ -174,7 +174,7 @@ install() {
 prep_installer () {
     cd ~/
     echo "Uncompressing installer and client binaries"
-    mkdir ~/bin/
+    test -d ~/bin/ || mkdir ~/bin/
     tar -xzf ./images/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz  -C ~/bin 
     tar -xaf ./images/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz -C ~/bin 
 }
@@ -214,7 +214,6 @@ prep_loadbalancer(){
 }
 
 check_dns() {
-    cd ~/
 
     echo "DNS - Checking Master nodes"
     echo "================================================="
@@ -375,6 +374,7 @@ EOF
 
     systemctl daemon-reload -q
     systemctl enable --now mirror-registry -q
+    systemctl restart mirror-registry -q
     firewall-cmd --permanent --add-port=5000/tcp -q
     firewall-cmd --permanent --add-port=5000/udp -q
     firewall-cmd --reload -q

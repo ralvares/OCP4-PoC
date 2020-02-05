@@ -13,23 +13,20 @@ RHCOS_IMAGE_BASE=4.3.0-x86_64
 WEBROOT=/var/www/html
 CLUSTER_NAME=ocp
 
-NFS=true
+NFS=false
 NFSROOT=/exports
 NFS_DEV=vdb
 NFS_PROVISIONER=true
 
 OCP_REGISTRY_STORAGE_TYPE=nfs
-
 DOMAINNAME=example.com
 
-LB=true
-
-#IPs NODES
 BOOTSTRAP=192.168.150.30
 MASTERS=192.168.150.30,192.168.150.31,192.168.150.32
 WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 
 AIRGAP_REG='bastion.example.com'
+
 AIRGAP_REPO='ocp4/openshift4'
 AIRGAP_SECRET_JSON='pull-secret.json'
 RHEL_PULLSECRET='redhat-registry-pullsecret.json'

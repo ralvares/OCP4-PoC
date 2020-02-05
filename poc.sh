@@ -36,7 +36,7 @@ RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
 
 usage() {
-    echo -e "Usage: $0 [ clean | check_dns | install | prep_registry | mirror ] "
+    echo -e "Usage: $0 [ clean | check_dns | install | prep_registry | mirror | prep_disconnected ] "
     echo -e "\t\t(extras) [ get_images | prep_installer | prep_images | prep_nfs | prep_http | pre_lb ]"
 }
 
@@ -434,7 +434,7 @@ case $key in
     prep_registry)
         prep_registry
         ;;
-    disconnected)
+    prep_disconnected)
         prep_discon
         ;;
     *)

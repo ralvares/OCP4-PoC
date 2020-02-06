@@ -579,6 +579,7 @@ fi
 }
 
 prep_discon(){
+    check_deps
     check_dns
     install_tools
     prep_http
@@ -592,8 +593,6 @@ prep_discon(){
 }
 
 key="$1"
-
-check_deps
 
 case $key in
     prep_nfs)

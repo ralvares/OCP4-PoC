@@ -37,6 +37,17 @@ usage() {
     echo -e "\t\t(extras) [ get_images | prep_installer | prep_images | prep_nfs | prep_http | prep_loadbalancer | deps ]"
 }
 
+
+
+check_deps (){
+    if [[ ! $(rpm -qa wget git bind-utils lvm2 lvm2-libs net-utils firewalld | wc -l) -ge 7 ]] ;
+    then
+        install_tools
+    fi    
+}
+
+
+
 get_images() {
     cd ~/
     test -d images || mkdir images ; cd images 
@@ -581,6 +592,8 @@ prep_discon(){
 }
 
 key="$1"
+
+check_deps
 
 case $key in
     prep_nfs)

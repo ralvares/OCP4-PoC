@@ -330,16 +330,19 @@ prep_registry (){
     fqdn=$(dig +short ${AIRGAP_REG})
     if [ ! -z ${fqdn} ]
     then
-    test -d /opt/registry/ || mkdir -p /opt/registry/{auth,certs,data}
-    openssl req -newkey rsa:4096 -nodes -sha256 -keyout /opt/registry/certs/domain.key -x509 -days 365 -subj "/CN=${AIRGAP_REG}" -out /opt/registry/certs/domain.crt
-    cp -rf /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
-    update-ca-trust
-    if [ ! -f /opt/registry/auth/htpasswd ]
-    then
-    echo "Please enter admin user password"
-    htpasswd -Bc /opt/registry/auth/htpasswd admin
-    fi
-
+        test -d /opt/registry/ || mkdir -p /opt/registry/{auth,certs,data}
+        if [ ! -f /opt/registry/certs/domain.crt ]
+        then
+            openssl req -newkey rsa:4096 -nodes -sha256 -keyout /opt/registry/certs/domain.key -x509 -days 365 -subj "/CN=${AIRGAP_REG}" -out /opt/registry/certs/domain.crt
+            cp -rf /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+            update-ca-trust
+            cert_update=true
+        fi
+        if [ ! -f /opt/registry/auth/htpasswd ]
+            then
+                echo "Please enter admin user password"
+                htpasswd -Bc /opt/registry/auth/htpasswd admin
+        fi
 
     test -f /etc/systemd/system/mirror-registry.service || cat > /etc/systemd/system/mirror-registry.service << EOF
 [Unit]
@@ -376,7 +379,10 @@ EOF
 
     systemctl daemon-reload -q
     systemctl enable --now mirror-registry -q
-    systemctl restart mirror-registry -q
+    if [[ ${cert_update} = true ]]
+        then
+            systemctl restart mirror-registry -q
+    fi
     firewall-cmd --permanent --add-port=5000/tcp -q
     firewall-cmd --permanent --add-port=5000/udp -q
     firewall-cmd --reload -q

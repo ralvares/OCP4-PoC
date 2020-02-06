@@ -21,7 +21,7 @@ NFS_PROVISIONER=true
 OCP_REGISTRY_STORAGE_TYPE=nfs
 DOMAINNAME=example.com
 
-BOOTSTRAP=192.168.150.30
+BOOTSTRAP=192.168.150.20
 MASTERS=192.168.150.30,192.168.150.31,192.168.150.32
 WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 
@@ -34,7 +34,7 @@ RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
 usage() {
     echo -e "Usage: $0 [ clean | check_dns | install | prep_registry | mirror | prep_disconnected ] "
-    echo -e "\t\t(extras) [ get_images | prep_installer | prep_images | prep_nfs | prep_http | pre_lb ]"
+    echo -e "\t\t(extras) [ get_images | prep_installer | prep_images | prep_nfs | prep_http | prep_loadbalancer | deps ]"
 }
 
 get_images() {
@@ -49,13 +49,13 @@ get_images() {
     test -f openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
 
     cd ..
-    tree images
+    #tree images
 }
 
 prep_http() {
     if [[ $(rpm -qa httpd | wc -l) -ge 1 ]] ;
     then
-    sed -i -e 's/Listen 80/Listen 8080/g' /etc/httpd/conf/httpd.conf
+    sed -i -e 's/Listen 80 /Listen 8080/g' /etc/httpd/conf/httpd.conf
     firewall-cmd --permanent --add-port=8080/tcp -q
     firewall-cmd --reload -q
     systemctl enable --now httpd
@@ -127,7 +127,7 @@ install_tools() {
     #RHEL7
     if grep -q -i "release 7" /etc/redhat-release; then
     #subscription-manager repos --enable rhel-7-server-extras-rpms
-    yum -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
+    yum -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2.x86_64 lvm2-libs firewalld || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
     fi
 }
 
@@ -183,15 +183,15 @@ prep_images () {
     echo "Copying RHCOS Boot Images to ${WEBROOT}"
     cp ./images/rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img ${WEBROOT}
     cp ./images/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel ${WEBROOT}
-    tree ${WEBROOT}
+    #tree ${WEBROOT}
 }
 
 prep_ign () {
     cd ~/
-    prep_http
     echo "Installing Ignition files into web path"
+    test -d ${WEBROOT} || prep_http
     cp -f ${CLUSTER_NAME}/*.ign ${WEBROOT}
-    tree ${WEBROOT}
+    #tree ${WEBROOT}
     echo "Assuming VMs boot process in progress"
     openshift-install wait-for bootstrap-complete --dir=${CLUSTER_NAME} --log-level debug
     echo "Enable cluster credentials: 'export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig'"
@@ -201,7 +201,103 @@ prep_ign () {
 }
 
 prep_loadbalancer(){
-    sed -i '0,/NODE/s//MASTER/' test.sh
+    count=0
+    for master in ${MASTERS}
+    do
+        export MASTER_${count}=${master}
+        ((count=count+1))
+    done
+    
+    count=0
+    for worker in ${WORKERS}
+    do
+        export WORKER_${count}=${worker}
+        ((count=count+1))
+    done
+
+    cat > /etc/haproxy/haproxy.cfg << EOF
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          300s
+    timeout server          300s
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 20000
+
+frontend openshift-api-server
+    bind *:6443
+    default_backend openshift-api-server
+    mode tcp
+    option tcplog
+
+frontend machine-config-server
+    bind *:22623
+    default_backend machine-config-server
+    mode tcp
+    option tcplog
+
+frontend ingress-http
+    bind *:80
+    default_backend ingress-http
+    mode tcp
+    option tcplog
+
+frontend ingress-https
+    bind *:443
+    default_backend ingress-https
+    mode tcp
+    option tcplog
+
+backend openshift-api-server
+    balance source
+    mode tcp
+    server bootstrap ${BOOTSTRAP}:6443 check
+    server master-0 ${MASTER_0}:6443 check
+    server master-1 ${MASTER_1}:6443 check
+    server master-2 ${MASTER_2}:6443 check
+
+backend machine-config-server
+    balance source
+    mode tcp
+    server bootstrap ${BOOTSTRAP}:22623 check
+    server master-0 ${MASTER_0}:22623 check
+    server master-1 ${MASTER_1}:22623 check
+    server master-2 ${MASTER_2}:22623 check
+
+backend ingress-http
+    balance source
+    mode tcp
+    server worker-0 ${WORKER_0}:80 check
+    server worker-1 ${WORKER_1}:80 check
+    server worker-2 ${WORKER_2}:80 check
+
+backend ingress-https
+    balance source
+    mode tcp
+    server worker-0 ${WORKER_0}:443 check
+    server worker-1 ${WORKER_1}:443 check
+    server worker-2 ${WORKER_2}:443 check
+
+EOF
+    setsebool -P haproxy_connect_any 1
+    firewall-cmd --permanent --add-service=http -q
+    firewall-cmd --permanent --add-service=https -q
+    firewall-cmd --permanent --add-port=6443/tcp -q
+    firewall-cmd --permanent --add-port=22623/tcp -q
+    firewall-cmd --reload -q
+
+    systemctl enable --now haproxy -q
+    systemctl restart haproxy -q
+    echo -e "\e[1;32m LoadBalancer - HAproxy Configuration: DONE \e[0m"
 }
 
 check_dns() {
@@ -392,11 +488,91 @@ else
 fi
 }
 
+prep_install-config(){
+
+
+test -f ~/.ssh/id_rsa.pub || ssh-keygen
+export SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
+
+test -f ~/${AIRGAP_SECRET_JSON} && export PULL_SECRET=$(cat ~/${AIRGAP_SECRET_JSON}) || export PULL_SECRET=$(cat ~/${RHEL_PULLSECRET})
+
+if [[ ! -z ${PULL_SECRET} ]] && [[ ! -f ${AIRGAP_SECRET_JSON} ]]
+then
+cat > ~/install-config.yaml << EOF
+apiVersion: v1
+baseDomain: ${DOMAINNAME}
+compute:
+- name: worker
+  replicas: 3
+controlPlane:
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTER_NAME}
+networking:
+  clusterNetworks:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+pullSecret: |
+  ${PULL_SECRET}
+sshKey: |
+  ${SSH_KEY}
+EOF
+fi
+
+if [[ ! -z ${PULL_SECRET} ]] && [[ -f ${AIRGAP_SECRET_JSON} ]]
+then
+cat > ~/install-config.yaml << EOF
+apiVersion: v1
+baseDomain: ${DOMAINNAME}
+compute:
+- name: worker
+  replicas: 3
+controlPlane:
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTER_NAME}
+networking:
+  clusterNetworks:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+pullSecret: |
+  ${PULL_SECRET}
+sshKey: |
+  ${SSH_KEY}
+
+install_config_additionalTrustBundle: |
+    $(cat /opt/registry/certs/domain.crt)
+
+imageContentSources:
+- mirrors:
+  - ${AIRGAP_REG}:5000/${AIRGAP_REPO}
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - ${AIRGAP_REG}:5000/${AIRGAP_REPO}
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+EOF
+fi
+}
+
 prep_discon(){
     check_dns
     install_tools
     prep_http
     prep_nfs
+    prep_loadbalancer
     get_images
     prep_images
     prep_installer
@@ -439,6 +615,12 @@ case $key in
         ;;
     prep_disconnected)
         prep_discon
+        ;;
+    prep_loadbalancer)
+        prep_loadbalancer
+        ;;
+    deps)
+        install_tools
         ;;
     *)
         usage

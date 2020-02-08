@@ -75,14 +75,14 @@ prep_http() {
     if [[ $(rpm -qa httpd | wc -l) -ge 1 ]] ;
     then
         if ! grep -q -i "Listen 8080" /etc/httpd/conf/httpd.conf;
-        then 
-            sed -i -e 's/Listen 80/Listen 8080/g' /etc/httpd/conf/httpd.conf
+            then 
+                sed -i -e 's/Listen 80/Listen 8080/g' /etc/httpd/conf/httpd.conf
         fi
             firewall-cmd --permanent --add-port=8080/tcp -q
             firewall-cmd --reload -q
             systemctl enable --now httpd
             systemctl restart httpd
-            touch /var/www/html/index.html
+            touch > /var/www/html/index.html
             echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
     else
         install_tools

@@ -21,7 +21,7 @@ DOMAINNAME=example.com
 
 
 ## LOCAL REGISTRY FOR DISCONNECTED INSTALLATION ##
-AIRGAP_REG="bastion.example.com"
+AIRGAP_REG="registry.example.com"
 
 
 ### NFS Server ###
@@ -60,7 +60,6 @@ check_deps (){
 get_images() {
     cd ~/
     test -d images || mkdir images ; cd images 
-    
     test -f rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-initramfs.img
     test -f rhcos-${RHCOS_IMAGE_BASE}-installer-kernel ||curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer-kernel
     test -f rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz
@@ -69,6 +68,7 @@ get_images() {
     test -f openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
     cd ..
     prep_images
+    prep_installer
 }
 
 prep_http() {
@@ -194,6 +194,10 @@ prep_ign() {
     cp install-config.yaml ${CLUSTER_NAME}
     echo "Generating ignition files"
     openshift-install create ignition-configs --dir=${CLUSTER_NAME}
+    echo "Installing Ignition files into web path"
+    test -d ${WEBROOT} || prep_http
+    cp -f ${CLUSTER_NAME}/*.ign ${WEBROOT}
+    test -d ${WEBROOT} && chmod a+r ${WEBROOT}/*.ign
 }
 
 prep_installer () {
@@ -218,9 +222,7 @@ prep_images () {
 
 install() {
     cd ~/
-    echo "Installing Ignition files into web path"
-    test -d ${WEBROOT} || prep_http
-    cp -f ${CLUSTER_NAME}/*.ign ${WEBROOT}
+   
     echo "Assuming VMs boot process in progress"
     openshift-install wait-for bootstrap-complete --dir=${CLUSTER_NAME} --log-level debug
     echo "Enable cluster credentials: 'export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig'"
@@ -551,6 +553,9 @@ case $key in
         ;;
     prep_images)
         prep_images
+        ;;
+    prep_ign)
+        prep_ign
         ;;
     check_dns)
         check_dns

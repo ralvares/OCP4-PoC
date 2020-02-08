@@ -4,30 +4,43 @@ IFS=","
 # UPDATE TO MATCH THE ENVIRONMENT
 ##############################################################
 
+
+## OCP RELEASE AND VERSION ###
 OCP_RELEASE_PATH=ocp
 OCP_SUBRELEASE=4.3.0
 
 RHCOS_RELEASE=4.3
 RHCOS_IMAGE_BASE=4.3.0-x86_64
 
-WEBROOT=/var/www/html
-CLUSTER_NAME=ocp
+### PULL SECRET - cloud.openshift.com ###
+RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
+## OCP CLUSTER NAME AND DOMAIN ###
+CLUSTER_NAME=ocp
+DOMAINNAME=example.com
+
+
+## LOCAL REGISTRY FOR DISCONNECTED INSTALLATION ##
+AIRGAP_REG="bastion.example.com"
+
+
+### NFS Server ###
 NFS=false
 NFSROOT=/exports
 NFS_DEV=vdb
 NFS_PROVISIONER=true
 
-OCP_REGISTRY_STORAGE_TYPE=nfs
-DOMAINNAME=example.com
 
+
+## NODES - IP ##
 BOOTSTRAP=192.168.150.20
 MASTERS=192.168.150.30,192.168.150.31,192.168.150.32
 WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 
-RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
-AIRGAP_REG="bastion.example.com"
+#### EXTRA CONFs ###
+OCP_REGISTRY_STORAGE_TYPE='nfs'
+WEBROOT='/var/www/html'
 AIRGAP_REPO='ocp4/openshift4'
 AIRGAP_SECRET_JSON='pull-secret.json'
 

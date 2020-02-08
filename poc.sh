@@ -222,7 +222,6 @@ prep_images () {
 
 install() {
     cd ~/
-   
     echo "Assuming VMs boot process in progress"
     openshift-install wait-for bootstrap-complete --dir=${CLUSTER_NAME} --log-level debug
     echo "Enable cluster credentials: 'export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig'"

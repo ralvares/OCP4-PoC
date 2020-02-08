@@ -25,11 +25,11 @@ BOOTSTRAP=192.168.150.20
 MASTERS=192.168.150.30,192.168.150.31,192.168.150.32
 WORKERS=192.168.150.40,192.168.150.41,192.168.150.42
 
-AIRGAP_REG='bastion.example.com'
+RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
+AIRGAP_REG="bastion.example.com"
 AIRGAP_REPO='ocp4/openshift4'
 AIRGAP_SECRET_JSON='pull-secret.json'
-RHEL_PULLSECRET='redhat-registry-pullsecret.json'
 
 
 usage() {
@@ -37,16 +37,12 @@ usage() {
     echo -e "\t\t(extras) [ get_images | prep_installer | prep_images | prep_nfs | prep_http | prep_loadbalancer | deps ]"
 }
 
-
-
 check_deps (){
     if [[ ! $(rpm -qa wget git bind-utils lvm2 lvm2-libs net-utils firewalld | wc -l) -ge 7 ]] ;
     then
         install_tools
     fi    
 }
-
-
 
 get_images() {
     cd ~/
@@ -58,22 +54,21 @@ get_images() {
     test -f rhcos-${RHCOS_IMAGE_BASE}-installer.iso || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/${RHCOS_RELEASE}/latest/rhcos-${RHCOS_IMAGE_BASE}-installer.iso
     test -f openshift-client-linux-${OCP_SUBRELEASE}.tar.gz  || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-client-linux-${OCP_SUBRELEASE}.tar.gz 
     test -f openshift-install-linux-${OCP_SUBRELEASE}.tar.gz || curl -J -L -O https://mirror.openshift.com/pub/openshift-v4/clients/${OCP_RELEASE_PATH}/${OCP_SUBRELEASE}/openshift-install-linux-${OCP_SUBRELEASE}.tar.gz
-
     cd ..
-    #tree images
+    prep_images
 }
 
 prep_http() {
     if [[ $(rpm -qa httpd | wc -l) -ge 1 ]] ;
     then
-    sed -i -e 's/Listen 80 /Listen 8080/g' /etc/httpd/conf/httpd.conf
-    firewall-cmd --permanent --add-port=8080/tcp -q
-    firewall-cmd --reload -q
-    systemctl enable --now httpd
-    echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
+        sed -i -e 's/Listen 80 /Listen 8080/g' /etc/httpd/conf/httpd.conf
+        firewall-cmd --permanent --add-port=8080/tcp -q
+        firewall-cmd --reload -q
+        systemctl enable --now httpd
+        echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
     else
-    install_tools
-    prep_http
+        install_tools
+        prep_http
     fi
 }
 
@@ -120,6 +115,7 @@ prep_nfs() {
                 echo "${NFSROOT}/pv-user-pvs $NODE(rw,sync,no_root_squash)" >> /etc/exports
             done
             exportfs -a
+            test -d ${NFSROOT} && chmod -R 770 ${NFSROOT}
             echo -e "\e[1;32m NFS - NFS Server Configuration: DONE \e[0m"
         else
             install_tools
@@ -131,14 +127,14 @@ prep_nfs() {
 install_tools() {
     #RHEL8
     if grep -q -i "release 8" /etc/redhat-release; then   
-    dnf -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree
-    echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
+        dnf -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree
+        echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
     fi
 
     #RHEL7
     if grep -q -i "release 7" /etc/redhat-release; then
-    #subscription-manager repos --enable rhel-7-server-extras-rpms
-    yum -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2.x86_64 lvm2-libs firewalld || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
+        #subscription-manager repos --enable rhel-7-server-extras-rpms
+        yum -y install podman skopeo httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2.x86_64 lvm2-libs firewalld || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
     fi
 }
 
@@ -151,30 +147,35 @@ mirror () {
     LOCAL_SECRET_JSON="${AIRGAP_SECRET_JSON}"
     RELEASE_NAME="ocp-release"
     OCP_RELEASE="${RHCOS_IMAGE_BASE}"
-
+    echo "Enter the user and password for local registry:"
     podman login --authfile mirror-registry-pullsecret.json "${AIRGAP_REG}:5000"
-    jq -s '{"auths": ( .[0].auths + .[1].auths ) }' mirror-registry-pullsecret.json ${RHEL_PULLSECRET} > ${AIRGAP_SECRET_JSON}   
 
-    oc adm -a ${LOCAL_SECRET_JSON} release mirror \
+    if [ -f ${RHEL_PULLSECRET} ]
+    then
+        jq -s '{"auths": ( .[0].auths + .[1].auths ) }' mirror-registry-pullsecret.json ${RHEL_PULLSECRET} > ${AIRGAP_SECRET_JSON}
+
+        oc adm -a ${LOCAL_SECRET_JSON} release mirror \
         --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE} \
         --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY} \
         --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}
 
-    echo "Retrieving 'openshift-install' from local container repository"
-    oc adm release extract -a ${AIRGAP_SECRET_JSON} --command=openshift-install "${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}"
-    mv openshift-install bin/openshift-install
-    echo "Retrieving 'openshift-install' Version"
-    openshift-install version
+        echo "Retrieving 'openshift-install' from local container repository"
+        oc adm release extract -a ${AIRGAP_SECRET_JSON} --command=openshift-install "${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}"
+        mv openshift-install bin/openshift-install
+        echo "Retrieving 'openshift-install' Version"
+        openshift-install version
+    else
+        echo "ERROR: ${RHEL_PULLSECRET} not found."
+    fi
 }
 
-install() {
+prep_ign() {
     cd ~/
     echo "Creating and populating installation folder"
     mkdir ${CLUSTER_NAME}
     cp install-config.yaml ${CLUSTER_NAME}
     echo "Generating ignition files"
     openshift-install create ignition-configs --dir=${CLUSTER_NAME}
-    prep_ign
 }
 
 prep_installer () {
@@ -187,7 +188,7 @@ prep_installer () {
 
 prep_images () {
     cd ~/
-    prep_http
+    test -d ${WEBROOT} || prep_http
     echo "Copying RHCOS OS Images to ${WEBROOT}"
     cp -f ./images/rhcos-${RHCOS_IMAGE_BASE}-metal.raw.gz ${WEBROOT}
 
@@ -197,12 +198,11 @@ prep_images () {
     #tree ${WEBROOT}
 }
 
-prep_ign () {
+install() {
     cd ~/
     echo "Installing Ignition files into web path"
     test -d ${WEBROOT} || prep_http
     cp -f ${CLUSTER_NAME}/*.ign ${WEBROOT}
-    #tree ${WEBROOT}
     echo "Assuming VMs boot process in progress"
     openshift-install wait-for bootstrap-complete --dir=${CLUSTER_NAME} --log-level debug
     echo "Enable cluster credentials: 'export KUBECONFIG=${CLUSTER_NAME}/auth/kubeconfig'"
@@ -499,94 +499,12 @@ else
 fi
 }
 
-prep_install-config(){
-
-
-test -f ~/.ssh/id_rsa.pub || ssh-keygen
-export SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
-
-test -f ~/${AIRGAP_SECRET_JSON} && export PULL_SECRET=$(cat ~/${AIRGAP_SECRET_JSON}) || export PULL_SECRET=$(cat ~/${RHEL_PULLSECRET})
-
-if [[ ! -z ${PULL_SECRET} ]] && [[ ! -f ${AIRGAP_SECRET_JSON} ]]
-then
-cat > ~/install-config.yaml << EOF
-apiVersion: v1
-baseDomain: ${DOMAINNAME}
-compute:
-- name: worker
-  replicas: 3
-controlPlane:
-  name: master
-  replicas: 3
-metadata:
-  name: ${CLUSTER_NAME}
-networking:
-  clusterNetworks:
-  - cidr: 10.128.0.0/14
-    hostPrefix: 23
-  networkType: OpenShiftSDN
-  serviceNetwork:
-  - 172.30.0.0/16
-platform:
-  none: {}
-pullSecret: |
-  ${PULL_SECRET}
-sshKey: |
-  ${SSH_KEY}
-EOF
-fi
-
-if [[ ! -z ${PULL_SECRET} ]] && [[ -f ${AIRGAP_SECRET_JSON} ]]
-then
-cat > ~/install-config.yaml << EOF
-apiVersion: v1
-baseDomain: ${DOMAINNAME}
-compute:
-- name: worker
-  replicas: 3
-controlPlane:
-  name: master
-  replicas: 3
-metadata:
-  name: ${CLUSTER_NAME}
-networking:
-  clusterNetworks:
-  - cidr: 10.128.0.0/14
-    hostPrefix: 23
-  networkType: OpenShiftSDN
-  serviceNetwork:
-  - 172.30.0.0/16
-platform:
-  none: {}
-pullSecret: |
-  ${PULL_SECRET}
-sshKey: |
-  ${SSH_KEY}
-
-install_config_additionalTrustBundle: |
-    $(cat /opt/registry/certs/domain.crt)
-
-imageContentSources:
-- mirrors:
-  - ${AIRGAP_REG}:5000/${AIRGAP_REPO}
-  source: quay.io/openshift-release-dev/ocp-release
-- mirrors:
-  - ${AIRGAP_REG}:5000/${AIRGAP_REPO}
-  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
-
-EOF
-fi
-}
-
 prep_discon(){
     check_deps
-    check_dns
-    install_tools
     prep_http
     prep_nfs
     prep_loadbalancer
     get_images
-    prep_images
     prep_installer
     prep_registry
     mirror
@@ -595,10 +513,10 @@ prep_discon(){
 key="$1"
 
 case $key in
-    prep_nfs)
+    nfs)
         prep_nfs
         ;;
-    prep_http)
+    http)
         prep_http
         ;;        
     get_images|images)
@@ -607,13 +525,10 @@ case $key in
     mirror)
         mirror
         ;;
-    clean)
-        clean
-        ;;
     install)
         install
         ;;
-    prep_installer)
+    get_installer)
         prep_installer
         ;;
     prep_images)
@@ -622,13 +537,13 @@ case $key in
     check_dns)
         check_dns
         ;;
-    prep_registry)
+    registry)
         prep_registry
         ;;
-    prep_disconnected)
+    disconnected)
         prep_discon
         ;;
-    prep_loadbalancer)
+    loadbalancer)
         prep_loadbalancer
         ;;
     deps)

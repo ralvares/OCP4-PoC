@@ -25,7 +25,7 @@ AIRGAP_REG="bastion.example.com"
 
 
 ### NFS Server ###
-NFS=false
+NFS=true
 NFSROOT=/exports
 NFS_DEV=vdb
 NFS_PROVISIONER=true
@@ -74,15 +74,20 @@ get_images() {
 prep_http() {
     if [[ $(rpm -qa httpd | wc -l) -ge 1 ]] ;
     then
-        sed -i -e 's/Listen 80 /Listen 8080/g' /etc/httpd/conf/httpd.conf
-        firewall-cmd --permanent --add-port=8080/tcp -q
-        firewall-cmd --reload -q
-        systemctl enable --now httpd
-        echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
+        if ! grep -q -i "Listen 8080" /etc/httpd/conf/httpd.conf;
+        then 
+            sed -i -e 's/Listen 80/Listen 8080/g' /etc/httpd/conf/httpd.conf
+        fi
+            firewall-cmd --permanent --add-port=8080/tcp -q
+            firewall-cmd --reload -q
+            systemctl enable --now httpd
+            systemctl restart httpd
+            touch /var/www/html/index.html
+            echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
     else
         install_tools
         prep_http
-    fi
+    fis
 }
 
 prep_nfs() {
@@ -147,7 +152,7 @@ install_tools() {
     #RHEL7
     if grep -q -i "release 7" /etc/redhat-release; then
         #subscription-manager repos --enable rhel-7-server-extras-rpms
-        yum -y install podman skopeo httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2.x86_64 lvm2-libs firewalld || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
+        yum -y install libguestfs-tools podman skopeo httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2.x86_64 lvm2-libs firewalld || echo "Please - Enable rhel7-server-extras-rpms repo" && echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
     fi
 }
 

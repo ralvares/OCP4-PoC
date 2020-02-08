@@ -87,7 +87,7 @@ prep_http() {
     else
         install_tools
         prep_http
-    fis
+    fi
 }
 
 prep_nfs() {

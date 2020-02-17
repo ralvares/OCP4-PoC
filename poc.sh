@@ -21,7 +21,7 @@ DOMAINNAME=example.com
 
 
 ## LOCAL REGISTRY FOR DISCONNECTED INSTALLATION ##
-AIRGAP_REG="registry.example.com"
+AIRGAP_REG="bastion.example.com"
 
 
 ### NFS Server ###
@@ -80,9 +80,9 @@ prep_http() {
         fi
             firewall-cmd --permanent --add-port=8080/tcp -q
             firewall-cmd --reload -q
-            systemctl enable --now httpd
+            systemctl enable httpd
             systemctl restart httpd
-            touch > /var/www/html/index.html
+            echo > /var/www/html/index.html
             echo -e "\e[1;32m HTTP - HTTP Server Configuration: DONE \e[0m"
     else
         install_tools
@@ -145,7 +145,7 @@ prep_nfs() {
 install_tools() {
     #RHEL8
     if grep -q -i "release 8" /etc/redhat-release; then   
-        dnf -y install podman httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree
+        dnf -y install libguestfs-tools podman skopeo httpd haproxy bind-utils net-tools nfs-utils rpcbind wget tree git lvm2 lvm2-libs firewalld jq
         echo -e "\e[1;32m Packages - Dependencies installed\e[0m"
     fi
 
